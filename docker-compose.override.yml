@@ -1,0 +1,18 @@
+services:
+  food-rescue-agent:
+    build:
+      context: ./apps/food_rescue_agent
+      dockerfile: Dockerfile
+    env_file:
+      - ./apps/food_rescue_agent/.env
+    environment:
+      DATABASE_URL: sqlite:///./fra1.db
+    volumes:
+      - fra1_data:/app/data
+    # internal only — no external port exposed
+    networks:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  fra1_data:

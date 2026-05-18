@@ -1,0 +1,26 @@
+[
+  {
+    "name": "spinach",
+    "quantity_estimate": "large bunch",
+    "visual_condition": "wilting",
+    "spoilage_risk": "high",
+    "storage_category": "fridge",
+    "confidence": 0.92
+  },
+  {
+    "name": "mushrooms",
+    "quantity_estimate": "200g",
+    "visual_condition": "fresh",
+    "spoilage_risk": "high",
+    "storage_category": "fridge",
+    "confidence": 0.88
+  },
+  {
+    "name": "carrots",
+    "quantity_estimate": "3 medium",
+    "visual_condition": "fresh",
+    "spoilage_risk": "low",
+    "storage_category": "fridge",
+    "confidence": 0.95
+  }
+]

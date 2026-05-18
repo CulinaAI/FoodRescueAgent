@@ -1,0 +1,45 @@
+name: FRA1 CI
+
+on:
+  push:
+    paths:
+      - 'apps/food_rescue_agent/**'
+  pull_request:
+    paths:
+      - 'apps/food_rescue_agent/**'
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/food_rescue_agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Unit tests
+        run: pytest tests/unit/ --cov=agent --cov-fail-under=80 -v
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: apps/food_rescue_agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Integration tests
+        env:
+          FOOD_RESCUE_API_KEY: test-key-integration
+          DATABASE_URL: sqlite:///./test_fra1.db
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: pytest tests/integration/ -v

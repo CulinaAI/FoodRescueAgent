@@ -1,0 +1,49 @@
+{
+  "HIGH": {
+    "description": "Use today — spoils in < 24h",
+    "override_conditions": ["no_freezer", "visual_wilting", "cut_open"],
+    "ingredients": [
+      "leafy greens", "spinach", "lettuce", "kale", "bok choy", "arugula",
+      "cut watermelon", "cut melon", "cut fruit", "watermelon",
+      "fresh fish", "raw seafood", "sashimi",
+      "tofu", "cooked rice", "fresh herbs", "basil", "cilantro", "parsley",
+      "mushrooms", "bean sprouts", "sprouts",
+      "avocado", "ripe banana", "ripe mango",
+      "yaprak yeşillikleri", "ıspanak", "marul", "roka",
+      "mantar", "taze ot", "fesleğen", "maydanoz",
+      "kesik kavun", "kesik karpuz",
+      "çiğ balık", "deniz ürünleri", "tofu", "pişmiş pirinç"
+    ]
+  },
+  "MEDIUM": {
+    "description": "Use within 2–3 days",
+    "ingredients": [
+      "whole vegetables", "broccoli", "cauliflower", "asparagus",
+      "raw chicken", "raw beef", "raw pork", "ground meat", "minced meat",
+      "dairy", "milk", "yogurt", "cream", "sour cream", "cream cheese",
+      "berries", "grapes", "peaches", "plums", "cherries",
+      "cucumber", "zucchini", "eggplant", "bell pepper", "green onion",
+      "corn", "fresh peas", "green beans",
+      "brokoli", "karnabahar", "kuşkonmaz",
+      "çiğ tavuk", "çiğ et", "kıyma",
+      "süt", "yoğurt", "krema",
+      "çilek", "üzüm", "şeftali", "kiraz",
+      "salatalık", "kabak", "patlıcan", "biber", "taze soğan"
+    ]
+  },
+  "LOW": {
+    "description": "Use within the week",
+    "ingredients": [
+      "root vegetables", "carrots", "potatoes", "sweet potatoes", "beets",
+      "onions", "garlic", "shallots",
+      "citrus", "apples", "pears", "oranges", "lemons",
+      "eggs", "hard cheese", "cheddar", "parmesan",
+      "dry goods", "pasta", "rice", "lentils", "chickpeas", "beans",
+      "nuts", "seeds", "dried fruit",
+      "havuç", "patates", "soğan", "sarımsak",
+      "portakal", "elma", "armut", "limon",
+      "yumurta", "sert peynir",
+      "makarna", "pirinç", "mercimek", "nohut", "fasulye"
+    ]
+  }
+}

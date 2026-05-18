@@ -1,0 +1,39 @@
+{
+  "urgency_summary": "Use spinach and mushrooms today — spinach is wilting and both will deteriorate quickly without freezing.",
+  "high_risk_ingredients": ["spinach", "mushrooms"],
+  "recipes": [
+    {
+      "title": "Wilted Spinach & Mushroom Stir-Fry",
+      "rescue_reason": "Spinach appears to be wilting — if it still smells fresh, use it immediately in high heat cooking",
+      "ingredients_used": ["spinach", "mushrooms", "garlic"],
+      "prep_time_minutes": 10,
+      "difficulty": "easy",
+      "steps": [
+        "Heat 2 tbsp oil in a wok or large pan over high heat",
+        "Add sliced mushrooms, cook 3-4 min until golden",
+        "Add minced garlic, cook 30 seconds",
+        "Add spinach, toss quickly until just wilted (1-2 min)",
+        "Season with soy sauce, salt and pepper"
+      ],
+      "no_freezer_friendly": true
+    },
+    {
+      "title": "Spinach & Mushroom Omelette",
+      "rescue_reason": "Uses remaining spinach — gentle cooking preserves what's left of the texture",
+      "ingredients_used": ["spinach", "mushrooms", "eggs"],
+      "prep_time_minutes": 15,
+      "difficulty": "easy",
+      "steps": [
+        "Sauté mushrooms in butter 3 min",
+        "Add spinach, cook until wilted",
+        "Beat 3 eggs, pour over vegetables",
+        "Cook on medium heat, fold when edges set"
+      ],
+      "no_freezer_friendly": true
+    }
+  ],
+  "storage_tips": [
+    "Carrots can be stored in a sealed bag in the fridge for up to 2 weeks",
+    "If mushrooms develop sliminess, discard immediately"
+  ]
+}

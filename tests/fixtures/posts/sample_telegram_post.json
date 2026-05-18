@@ -1,0 +1,10 @@
+{
+  "text": "I have spinach and mushrooms that are going bad today. No freezer available. Family of 3. What can I cook tonight?",
+  "platform": "telegram",
+  "context": {
+    "no_freezer": true,
+    "people_count": 3,
+    "time_pressure": "tonight"
+  },
+  "idempotency_key": "fixture-telegram-001"
+}
