@@ -167,11 +167,13 @@ async def _run_analysis(body: AnalyzeRequest) -> AnalyzeResponse:
 
     # Persist
     analysis_id = str(uuid.uuid4())
+    meta = body.source_metadata or {}
     with get_session() as db:
         post = RescuePost(
             id=str(uuid.uuid4()),
             idempotency_key=idempotency_key,
             source_platform=body.platform,
+            source_id=meta.get("reddit_post_id"),
             raw_text=body.text,
             is_food_rescue=intent.is_food_rescue,
             urgency_hint=(
@@ -179,6 +181,9 @@ async def _run_analysis(body: AnalyzeRequest) -> AnalyzeResponse:
                 "medium" if any(p.risk == "medium" for p in prioritized) else "low"
             ),
             rescue_signals=json.dumps(intent.rescue_signal_names),
+            subreddit=meta.get("subreddit"),
+            post_title=meta.get("post_title"),
+            post_url=meta.get("post_url"),
         )
         db.add(post)
         db.flush()

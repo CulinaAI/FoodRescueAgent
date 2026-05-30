@@ -37,6 +37,9 @@ class RescuePost(Base):
     is_food_rescue = Column(Boolean, nullable=True)
     urgency_hint = Column(String, nullable=True)
     rescue_signals = Column(Text, nullable=True)  # JSON array as text
+    subreddit      = Column(String, nullable=True)
+    post_title     = Column(Text, nullable=True)
+    post_url       = Column(String, nullable=True)
 
     analyses = relationship("RescueAnalysis", back_populates="post")
 

@@ -13,3 +13,4 @@ python-jose[cryptography]
 slowapi
 structlog
 python-multipart
+praw>=7.7

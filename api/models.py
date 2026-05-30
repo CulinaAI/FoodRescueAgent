@@ -14,10 +14,11 @@ class AnalyzeContext(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     text: str
-    images: list[str] = Field(default_factory=list, max_length=10)
+    images: list[str] = Field(default_factory=list)
     platform: Literal["telegram", "reddit", "manual", "generic"] = "generic"
     context: AnalyzeContext = Field(default_factory=AnalyzeContext)
     idempotency_key: str | None = None
+    source_metadata: dict[str, str] | None = None
 
 
 # ── Domain objects ────────────────────────────────────────────────────────────
