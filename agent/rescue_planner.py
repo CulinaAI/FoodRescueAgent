@@ -1,10 +1,10 @@
 from __future__ import annotations
 import json
-import os
 
 from google import genai
 import structlog
 
+from agent.genai_client import get_genai_client, model_name
 from agent.risk_engine import PrioritizedIngredient
 from api.models import AnalyzeContext, RescuePlan, RecipeEntry
 
@@ -51,7 +51,7 @@ Return only the JSON, no markdown fences, no extra text.
 
 
 def _get_client() -> genai.Client:
-    return genai.Client(api_key=os.getenv("GEMINI_API_KEY", ""))
+    return get_genai_client()
 
 
 def _build_prompt(
@@ -88,7 +88,7 @@ def generate_rescue_plan(
         try:
             from google.genai import types as genai_types
             response = client.models.generate_content(
-                model="gemini-flash-latest",
+                model=model_name(),
                 contents=prompt,
                 config=genai_types.GenerateContentConfig(
                     system_instruction=_SYSTEM_INSTRUCTION,

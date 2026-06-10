@@ -9,6 +9,7 @@ from google import genai
 from google.genai import types as genai_types
 import structlog
 
+from agent.genai_client import get_genai_client, model_name
 from api.models import ScannedIngredient
 
 log = structlog.get_logger()
@@ -37,8 +38,7 @@ Example output:
 
 
 def _get_client() -> genai.Client:
-    api_key = os.getenv("GEMINI_API_KEY", "")
-    return genai.Client(api_key=api_key)
+    return get_genai_client()
 
 
 def _decode_image_to_temp(b64_or_url: str) -> tuple[str, str]:
@@ -102,7 +102,7 @@ def analyze_images(
 
             try:
                 response = client.models.generate_content(
-                    model="gemini-flash-latest",
+                    model=model_name(),
                     contents=[_VISION_PROMPT, image_part],
                 )
                 raw = response.text.strip()
