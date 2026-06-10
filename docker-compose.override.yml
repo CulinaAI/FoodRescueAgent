@@ -1,4 +1,6 @@
 services:
+  # FastAPI agent — owns the rescue pipeline (intent → vision → risk → plan → reply)
+  # and all DB writes. Internal only; the .NET proxy / monitor reach it by service name.
   food-rescue-agent:
     build:
       context: ./apps/food_rescue_agent
@@ -6,10 +8,51 @@ services:
     env_file:
       - ./apps/food_rescue_agent/.env
     environment:
-      DATABASE_URL: sqlite:///./fra1.db
+      # DB lives on the shared volume so the HITL dashboard sees the same data.
+      DATABASE_URL: sqlite:////app/data/fra1.db
     volumes:
       - fra1_data:/app/data
     # internal only — no external port exposed
+    networks:
+      - backend
+    restart: unless-stopped
+
+  # Reddit monitor — long-running stream worker (PRIMARY channel). Stateless: it does
+  # NOT touch the DB; it only POSTs detected food-rescue posts to the agent's /analyze.
+  reddit-monitor:
+    build:
+      context: ./apps/food_rescue_agent
+      dockerfile: Dockerfile
+    command: ["python", "connectors/reddit_monitor.py"]
+    env_file:
+      - ./apps/food_rescue_agent/.env
+    environment:
+      FOOD_RESCUE_AGENT_URL: http://food-rescue-agent:8080
+    depends_on:
+      - food-rescue-agent
+    networks:
+      - backend
+    restart: unless-stopped
+
+  # HITL moderation dashboard (Streamlit) — moderators review the queue and approve/edit.
+  # Shares the agent's DB via the fra1_data volume. With REDDIT_POST_ENABLED=false (default)
+  # approving does NOT auto-post; the reply is shown for manual copy.
+  # NOTE: put behind Caddy + auth in production; 8501 is exposed here for demo access.
+  hitl-dashboard:
+    build:
+      context: ./apps/food_rescue_agent
+      dockerfile: Dockerfile
+    command: ["streamlit", "run", "hitl/dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    env_file:
+      - ./apps/food_rescue_agent/.env
+    environment:
+      DATABASE_URL: sqlite:////app/data/fra1.db
+    volumes:
+      - fra1_data:/app/data
+    ports:
+      - "8501:8501"
+    depends_on:
+      - food-rescue-agent
     networks:
       - backend
     restart: unless-stopped

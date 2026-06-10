@@ -35,6 +35,11 @@ _REDDIT_CREDS_AVAILABLE = all([
     os.getenv("REDDIT_PASSWORD"),
 ])
 
+# Safety gate: auto-posting to Reddit is OFF by default. When disabled, an approved
+# reply is logged + shown for the moderator to copy manually — no comment is created.
+# This protects the bot account from subreddit-rule / anti-spam bans (esp. pre-launch).
+_REDDIT_POST_ENABLED = os.getenv("REDDIT_POST_ENABLED", "false").lower() == "true"
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
@@ -117,9 +122,9 @@ def apply_action(
     comment_id: str | None = None
 
     if action in {"approved", "edited"} and platform == "reddit" and source_id:
-        if _REDDIT_CREDS_AVAILABLE:
+        if _REDDIT_POST_ENABLED and _REDDIT_CREDS_AVAILABLE:
             comment_id = post_reddit_reply(source_id, final_content)
-        # If creds not available, we still mark approved — moderator copies manually
+        # Dry-run (default) or no creds: mark approved, moderator copies the reply manually
 
     with get_session() as db:
         draft = db.query(RescueDraft).filter_by(id=draft_id).first()
@@ -142,7 +147,7 @@ def apply_action(
                 draft_id=draft_id,
                 platform=draft.platform,
                 external_id=comment_id,
-                status="sent" if comment_id or not _REDDIT_CREDS_AVAILABLE else "pending_manual",
+                status="sent" if comment_id else "pending_manual",
             )
             db.add(send)
 
@@ -244,16 +249,16 @@ with tab_pending:
                         source_id=item.get("source_id"),
                         platform=item["platform"],
                     )
-                    if is_reddit and not _REDDIT_CREDS_AVAILABLE:
-                        st.info("Onaylandı. Reddit kimlik bilgileri yok — yanıtı manuel yapıştırın:")
-                        st.code(item["content"])
-                    elif comment_id:
+                    if is_reddit and comment_id:
                         st.success(f"Onaylandı ve Reddit'e gönderildi. Yorum ID: `{comment_id}`")
+                    elif is_reddit:
+                        st.info("Onaylandı (auto-post kapalı/dry-run) — yanıtı manuel yapıştırın:")
+                        st.code(item["content"])
                     else:
                         st.success("Onaylandı!")
                     st.rerun()
 
-                edit_label = "✏️ Düzenle + Onayla" + (" + Reddit" if is_reddit and _REDDIT_CREDS_AVAILABLE else "")
+                edit_label = "✏️ Düzenle + Onayla" + (" + Reddit" if is_reddit and _REDDIT_POST_ENABLED and _REDDIT_CREDS_AVAILABLE else "")
                 if btn2.button(edit_label, key=f"edit_{item['draft_id']}"):
                     comment_id = apply_action(
                         item["draft_id"], "edited", "Edited by moderator",
@@ -261,11 +266,11 @@ with tab_pending:
                         source_id=item.get("source_id"),
                         platform=item["platform"],
                     )
-                    if is_reddit and not _REDDIT_CREDS_AVAILABLE:
-                        st.info("Düzenlendi. Reddit kimlik bilgileri yok — yanıtı manuel yapıştırın:")
-                        st.code(draft_content)
-                    elif comment_id:
+                    if is_reddit and comment_id:
                         st.success(f"Düzenlendi ve Reddit'e gönderildi. Yorum ID: `{comment_id}`")
+                    elif is_reddit:
+                        st.info("Düzenlendi (auto-post kapalı/dry-run) — yanıtı manuel yapıştırın:")
+                        st.code(draft_content)
                     else:
                         st.success("Düzenlendi ve onaylandı!")
                     st.rerun()
