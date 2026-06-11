@@ -44,14 +44,37 @@ pip install -r requirements-dev.txt
 
 ## Run
 
-### Docker Compose (all 3 processes — recommended)
+### Quickstart — Docker (judges / standalone)
+
+Self-contained: needs only a Gemini API key (no GCP / Vertex / ADC). Run from **this folder**.
 
 ```bash
-# from repo root, with the food_rescue_agent override:
-docker compose -f apps/food_rescue_agent/docker-compose.override.yml up --build
-#   food-rescue-agent  → FastAPI pipeline (internal)
-#   reddit-monitor     → streams subreddits → /analyze
-#   hitl-dashboard     → Streamlit moderation UI at http://localhost:8501
+cp .env.example .env          # paste your GEMINI_API_KEY (https://aistudio.google.com/apikey)
+docker compose -f docker-compose.standalone.yml up --build
+#   food-rescue-agent  → FastAPI pipeline   http://localhost:8080  (POST /analyze, /analyze/text)
+#   hitl-dashboard     → Streamlit moderation UI  http://localhost:8501
+
+# Optional — add the live Reddit monitor (needs REDDIT_* creds in .env):
+docker compose -f docker-compose.standalone.yml --profile reddit up --build
+```
+
+Smoke test once it's up:
+
+```bash
+curl -s -X POST http://localhost:8080/analyze/text \
+  -H "X-API-Key: $FOOD_RESCUE_API_KEY" -H "Content-Type: application/json" \
+  -d '{"text":"2 wilting spinach bunches and mushrooms going off, no freezer"}'
+```
+
+### Production — GCP / Vertex AI (authors' deployment)
+
+The authors run on a GCP VM with Vertex AI (ADC auth, no API key). That overlay sets
+`GOOGLE_GENAI_USE_VERTEXAI=true` + the service-account credentials and keeps the HITL
+dashboard internal-only:
+
+```bash
+# from repo root, with a gcp_adc.json present:
+docker compose -f apps/food_rescue_agent/docker-compose.override.yml --project-directory . up -d --build
 ```
 
 ### Locally (separate terminals)

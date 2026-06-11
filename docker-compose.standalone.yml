@@ -1,0 +1,60 @@
+# Standalone compose — run the Food Rescue Agent on its own, from THIS folder.
+# Intended for judges / local evaluation: needs only a Gemini API key (no GCP / ADC).
+#
+#   cp .env.example .env        # then paste your GEMINI_API_KEY
+#   docker compose -f docker-compose.standalone.yml up --build
+#
+#   • API pipeline   → http://localhost:8080  (POST /analyze, /analyze/text)
+#   • HITL dashboard → http://localhost:8501  (Streamlit moderation UI)
+#
+# The Reddit monitor is optional (needs Reddit creds) and lives behind a profile:
+#   docker compose -f docker-compose.standalone.yml --profile reddit up --build
+services:
+  food-rescue-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite:////app/data/fra1.db
+    volumes:
+      - fra1_data:/app/data
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  hitl-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["streamlit", "run", "hitl/dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite:////app/data/fra1.db
+    volumes:
+      - fra1_data:/app/data
+    ports:
+      - "8501:8501"
+    depends_on:
+      - food-rescue-agent
+    restart: unless-stopped
+
+  # Optional — only starts with `--profile reddit` (needs REDDIT_* creds in .env).
+  reddit-monitor:
+    profiles: ["reddit"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "connectors/reddit_monitor.py"]
+    env_file:
+      - .env
+    environment:
+      FOOD_RESCUE_AGENT_URL: http://food-rescue-agent:8080
+    depends_on:
+      - food-rescue-agent
+    restart: unless-stopped
+
+volumes:
+  fra1_data:

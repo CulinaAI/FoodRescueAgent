@@ -10,19 +10,16 @@ services:
     environment:
       # DB lives on the shared volume so the HITL dashboard sees the same data.
       DATABASE_URL: sqlite:////app/data/fra1.db
-      # Vertex AI (ADC auth) — mirrors the .NET backend; no API key needed.
+      # Vertex AI — uses VM instance service account via metadata server (no key file needed).
       GOOGLE_GENAI_USE_VERTEXAI: "true"
       GOOGLE_CLOUD_PROJECT: culinaai-backend
       GOOGLE_CLOUD_LOCATION: europe-west3
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp_adc.json
       FRA_GEMINI_MODEL: gemini-3.5-flash
     volumes:
       - fra1_data:/app/data
-      # Same service-account ADC the backend uses (already has Vertex AI access).
-      - ./gcp_adc.json:/run/secrets/gcp_adc.json:ro
     # internal only — no external port exposed
     networks:
-      - backend
+      - culina_net
     restart: unless-stopped
 
   # Reddit monitor — long-running stream worker (PRIMARY channel). Stateless: it does
@@ -39,7 +36,7 @@ services:
     depends_on:
       - food-rescue-agent
     networks:
-      - backend
+      - culina_net
     restart: unless-stopped
 
   # HITL moderation dashboard (Streamlit) — moderators review the queue and approve/edit.
@@ -59,13 +56,18 @@ services:
       DATABASE_URL: sqlite:////app/data/fra1.db
     volumes:
       - fra1_data:/app/data
-    expose:
-      - "8501"
+    ports:
+      - "0.0.0.0:8501:8501"
     depends_on:
       - food-rescue-agent
     networks:
-      - backend
+      - culina_net
     restart: unless-stopped
 
 volumes:
   fra1_data:
+
+networks:
+  culina_net:
+    external: true
+    name: culinaai_culina_net

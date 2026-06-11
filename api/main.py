@@ -1,4 +1,3 @@
-from __future__ import annotations
 import base64
 import json
 import os
@@ -91,16 +90,16 @@ def _validate_images(images: list[str]) -> None:
 
 @app.post("/analyze", response_model=AnalyzeResponse, dependencies=[Depends(verify_api_key)])
 @limiter.limit(_RATE_LIMIT)
-async def analyze(request: Request, body: AnalyzeRequest) -> AnalyzeResponse:
-    _validate_images(body.images)
-    return await _run_analysis(body)
+async def analyze(request: Request, req: AnalyzeRequest) -> AnalyzeResponse:
+    _validate_images(req.images)
+    return await _run_analysis(req)
 
 
 @app.post("/analyze/text", response_model=AnalyzeResponse, dependencies=[Depends(verify_api_key)])
 @limiter.limit(_RATE_LIMIT)
-async def analyze_text(request: Request, body: AnalyzeRequest) -> AnalyzeResponse:
-    body.images = []  # force text-only path
-    return await _run_analysis(body)
+async def analyze_text(request: Request, req: AnalyzeRequest) -> AnalyzeResponse:
+    req.images = []  # force text-only path
+    return await _run_analysis(req)
 
 
 async def _run_analysis(body: AnalyzeRequest) -> AnalyzeResponse:

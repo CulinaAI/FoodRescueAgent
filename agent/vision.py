@@ -46,7 +46,12 @@ def _decode_image_to_temp(b64_or_url: str) -> tuple[str, str]:
     if b64_or_url.startswith("http://") or b64_or_url.startswith("https://"):
         # URL — download to temp
         import httpx
-        resp = httpx.get(b64_or_url, timeout=10)
+        resp = httpx.get(
+            b64_or_url,
+            timeout=10,
+            follow_redirects=True,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; CulinaAI-FoodRescueAgent/1.0)"},
+        )
         resp.raise_for_status()
         content = resp.content
         content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
