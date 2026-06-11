@@ -1,7 +1,9 @@
 from __future__ import annotations
+import base64 as _b64
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -17,8 +19,9 @@ from db.models import (
     get_session,
 )
 
-st.set_page_config(page_title="Food Rescue — Command Center", page_icon="🌿", layout="wide")
+st.set_page_config(page_title="FRACC — Food Rescue Command Center", page_icon="🌿", layout="wide")
 create_tables()
+
 
 REJECT_REASONS = [
     "Wrong content",
@@ -73,7 +76,7 @@ def load_pending(platform_filter: str = "all") -> list[dict]:
         query = db.query(RescueDraft).filter(RescueDraft.hitl_status == "pending")
         if platform_filter != "all":
             query = query.filter(RescueDraft.platform == platform_filter)
-        drafts = query.order_by(RescueDraft.created_at.asc()).limit(50).all()
+        drafts = query.order_by(RescueDraft.created_at.desc()).limit(50).all()
 
         result = []
         for d in drafts:
@@ -92,6 +95,7 @@ def load_pending(platform_filter: str = "all") -> list[dict]:
                 "post_title": post.post_title if post else None,
                 "post_url": post.post_url if post else None,
                 "source_id": post.source_id if post else None,
+                "image_b64": post.image_b64 if post else None,
             })
         return result
 
@@ -160,7 +164,11 @@ def apply_action(
 
 _CSS = """
 <style>
-.block-container { padding-top: 2.1rem; padding-bottom: 3rem; max-width: 1240px; }
+/* hide only the top colored bar decoration, keep hamburger menu */
+[data-testid="stDecoration"] { display: none !important; }
+header[data-testid="stHeader"] { background: transparent; }
+
+.block-container { padding-top: 3.5rem; padding-bottom: 3rem; max-width: 1240px; }
 
 /* header */
 .fr-header { display:flex; align-items:center; gap:14px; margin: 2px 0 10px; }
@@ -195,8 +203,31 @@ _CSS = """
 .fr-flabel { color:#8B97A6; font-size:0.72rem; font-weight:700; text-transform:uppercase;
              letter-spacing:.05em; margin:2px 0 4px; }
 
-/* buttons */
-.stButton > button { border-radius:10px; font-weight:600; }
+/* filter buttons */
+.fr-filter-bar { display:flex; gap:8px; margin: 8px 0 16px; }
+
+/* stat card buttons — all 4 first columns in the stat row */
+.stat-row ~ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(-n+4) .stButton > button {
+    background: #131B23 !important;
+    border: 1px solid #1E2C38 !important;
+    border-radius: 12px !important;
+    min-height: 82px !important;
+    width: 100% !important;
+    text-align: left !important;
+    padding: 14px 18px !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    color: #8B97A6 !important;
+    white-space: pre-line !important;
+    line-height: 1.1 !important;
+    letter-spacing: 0 !important;
+    transition: border-color 0.15s ease, background 0.15s ease !important;
+    cursor: pointer !important;
+}
+.stat-row ~ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(-n+4) .stButton > button:hover {
+    border-color: #34D399 !important;
+    background: rgba(52,211,153,.06) !important;
+}
 </style>
 """
 st.markdown(_CSS, unsafe_allow_html=True)
@@ -216,19 +247,54 @@ else:
     mode_pill = '<span class="fr-pill fr-pill-dry">● DRY-RUN — manual post</span>'
 
 st.markdown(
-    '<div class="fr-header"><span class="fr-logo">🌿</span><div>'
-    '<p class="fr-title">Food Rescue — Command Center</p>'
+    f'<div class="fr-header">'
+    '<div>'
+    '<p class="fr-title">FRACC — Food Rescue Command Center</p>'
     f'<p class="fr-sub">Human-in-the-loop moderation for AI rescue replies {mode_pill}</p>'
     '</div></div>',
     unsafe_allow_html=True,
 )
 
 stats = load_stats()
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Pending", stats["pending"])
-c2.metric("Approved", stats["approved"])
-c3.metric("Total reviews", stats["total_reviews"])
-c4.metric("Reddit posts", stats["reddit_count"])
+
+# Initialise stat filter
+if "stat_filter" not in st.session_state:
+    st.session_state["stat_filter"] = "pending"
+
+_sf = st.session_state["stat_filter"]
+_STAT_DEFS = [
+    ("pending",       "Pending",       stats["pending"]),
+    ("approved",      "Approved",      stats["approved"]),
+    ("total_reviews", "Total reviews", stats["total_reviews"]),
+    ("reddit",        "Reddit posts",  stats["reddit_count"]),
+]
+_active_idx = [k for k,_,_ in _STAT_DEFS].index(_sf) + 1  # 1-based for CSS nth-child
+
+# Marker div for CSS targeting + dynamic active-state injection
+st.markdown(f"""
+<style>
+.stat-row ~ div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child({_active_idx}) .stButton > button {{
+    border-color: #34D399 !important;
+    background: rgba(52,211,153,.1) !important;
+    color: #E8EEF4 !important;
+}}
+</style>
+<div class="stat-row"></div>
+""", unsafe_allow_html=True)
+
+sc1, sc2, sc3, sc4, sc5 = st.columns([1, 1, 1, 1, 2])
+for col, (key, label, val) in zip([sc1, sc2, sc3, sc4], _STAT_DEFS):
+    with col:
+        if st.button(f"{label}\n{val}", key=f"stat_{key}", use_container_width=True):
+            st.session_state["stat_filter"] = key
+            st.rerun()
+
+sc5.markdown(
+    f'<p style="color:#8B97A6;font-size:0.8rem;margin-top:1.2rem">'
+    f'\U0001f504 Auto-refreshes every 15s &nbsp;&middot;&nbsp; Last updated: '
+    f'{datetime.now().strftime("%H:%M:%S")}</p>',
+    unsafe_allow_html=True,
+)
 
 if not _REDDIT_CREDS_AVAILABLE:
     st.warning(
@@ -248,7 +314,19 @@ with tab_pending:
         format_func=lambda x: {"all": "🌐 All", **_PLATFORM_LABEL}[x],
     )
 
-    pending = load_pending(platform_filter)
+    # Apply stat card filter
+    _sf = st.session_state["stat_filter"]
+    if _sf == "reddit":
+        platform_filter = "reddit"
+    elif _sf == "approved":
+        # Approved items live in History — show a nudge and load history instead
+        st.info("✅ Approved items are in the **History** tab below.")
+
+    pending = load_pending(platform_filter if _sf != "approved" else "all")
+    if _sf == "approved":
+        # Show only approved subset in pending view
+        pending = []
+
 
     if not pending:
         st.success("No pending drafts — the queue is clear. 🎉")
@@ -282,10 +360,18 @@ with tab_pending:
 
                 with col_left:
                     st.markdown('<p class="fr-flabel">Original message</p>', unsafe_allow_html=True)
+                    # Show image if available
+                    if item.get("image_b64"):
+                        import base64
+                        try:
+                            img_bytes = base64.b64decode(item["image_b64"])
+                            st.image(img_bytes, use_container_width=True)
+                        except Exception:
+                            pass
                     st.text_area(
                         "Original message",
                         value=item["raw_text"],
-                        height=160,
+                        height=100,
                         key=f"orig_{item['draft_id']}",
                         disabled=True,
                         label_visibility="collapsed",
@@ -299,10 +385,12 @@ with tab_pending:
 
                 with col_right:
                     st.markdown('<p class="fr-flabel">Agent draft reply</p>', unsafe_allow_html=True)
+                    # Match right column height to left: image(~480px) + text(100) + caption(~30) ≈ 610
+                    _right_h = 560 if item.get("image_b64") else 160
                     draft_content = st.text_area(
                         "Agent draft reply",
                         value=item["content"],
-                        height=160,
+                        height=_right_h,
                         key=f"content_{item['draft_id']}",
                         label_visibility="collapsed",
                     )
@@ -386,3 +474,7 @@ with tab_history:
                 )
                 if r.editor_note:
                     st.caption(r.editor_note)
+
+# ── Auto-refresh every 15 seconds ───────────────────────────────────────────
+time.sleep(15)
+st.rerun()

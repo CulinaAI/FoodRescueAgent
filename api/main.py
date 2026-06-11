@@ -183,6 +183,7 @@ async def _run_analysis(body: AnalyzeRequest) -> AnalyzeResponse:
             subreddit=meta.get("subreddit"),
             post_title=meta.get("post_title"),
             post_url=meta.get("post_url"),
+            image_b64=body.images[0] if body.images else None,
         )
         db.add(post)
         db.flush()

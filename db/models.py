@@ -40,6 +40,7 @@ class RescuePost(Base):
     subreddit      = Column(String, nullable=True)
     post_title     = Column(Text, nullable=True)
     post_url       = Column(String, nullable=True)
+    image_b64      = Column(Text, nullable=True)  # base64 of first image (vision demo)
 
     analyses = relationship("RescueAnalysis", back_populates="post")
 
@@ -104,6 +105,16 @@ class ChannelSend(Base):
 
 def create_tables() -> None:
     Base.metadata.create_all(bind=engine)
+    # Migrate existing tables — add new nullable columns if missing (SQLite safe)
+    with engine.connect() as conn:
+        existing = [row[1] for row in conn.execute(
+            __import__("sqlalchemy").text("PRAGMA table_info(rescue_posts)")
+        )]
+        if "image_b64" not in existing:
+            conn.execute(__import__("sqlalchemy").text(
+                "ALTER TABLE rescue_posts ADD COLUMN image_b64 TEXT"
+            ))
+            conn.commit()
 
 
 def get_session() -> Session:

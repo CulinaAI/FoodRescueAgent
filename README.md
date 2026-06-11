@@ -1,139 +1,191 @@
-# CulinaAI Food Rescue Agent
+# 🌿 CulinaAI Food Rescue Agent (FRACC)
 
-Python FastAPI service — food rescue pipeline for the Google AI Agents Challenge 2026.
+> **Google for Startups AI Agents Challenge 2025 submission**  
+> An AI agent that reads Reddit food posts, analyzes ingredients with Gemini Vision, scores spoilage risk, and generates rescue recipes ordered by urgency — with a Human-in-the-Loop moderation layer before any reply is posted.
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-FRACC%20Dashboard-34D399?style=for-the-badge)](https://fracc.34-141-19-206.sslip.io)
+[![Python](https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge&logo=python)](https://python.org)
+[![Gemini](https://img.shields.io/badge/Gemini-3.5%20Flash-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev)
+
+---
+
+## Problem
+
+Thousands of people post fridge photos on Reddit asking what to cook before things go bad. No tool prioritizes by spoilage risk. Food gets thrown out that could have been saved.
+
+## Solution
+
+An AI agent that:
+1. **Reads** Reddit community posts (r/noscrapleftbehind, r/mealprep, r/EatCheapAndHealthy)
+2. **Analyzes** ingredients via Gemini 3.5 Flash Vision (detects wilting, discoloration, bruising)
+3. **Scores** spoilage risk with a deterministic rule engine (high/medium/low)
+4. **Generates** rescue recipes ordered by urgency
+5. **Reviews** every draft reply through a Human-in-the-Loop dashboard before posting
+
+---
 
 ## Architecture
 
-**Primary channel: Reddit.** A long-running monitor streams target subreddits, filters
-for food-rescue intent, and pushes posts through the pipeline into a human-moderated queue.
-Telegram / manual upload are secondary inputs.
-
 ```
-Reddit monitor (subreddit stream)  ─┐
-Telegram / Manual Upload           ─┤→ POST /analyze
-                                     │
-  → Intent Detection (pure Python, rule-based)
-  → Vision Analysis  (Gemini Vision, if images present)
-  → Risk Engine      (JSON rules, no API call)
-  → Rescue Planner   (Gemini)
-  → Reply Generator  (platform templates)
-  → HITL Queue       (SQLite)
-  → Streamlit Dashboard (approve / edit / reject)
-        └─ approve → reply posted back to Reddit (gated by REDDIT_POST_ENABLED)
+Reddit Posts
+    │
+    ▼ PRAW stream
+Reddit Monitor ──────────────────────────────────────┐
+    │                                                 │
+    ▼ POST /analyze                                   │
+Food Rescue Agent API (FastAPI)                       │
+    │                                                 │
+    ├─ 1. Intent Detection (keyword scoring)          │
+    ├─ 2. Gemini Vision   (ingredient extraction)     │
+    ├─ 3. Spoilage Scoring (deterministic rules)      │
+    ├─ 4. Rescue Plan     (Gemini text generation)    │
+    └─ 5. Draft Reply     (platform-aware format)     │
+                │                                     │
+                ▼                                     │
+         SQLite / PostgreSQL                          │
+                │                                     │
+                ▼                                     │
+       HITL Dashboard (Streamlit)  ◄──────────────────┘
+                │
+                ▼ Human: Approve / Edit / Reject
+         Reddit Reply Posted
 ```
 
-### Reddit channel & posting safety
+**Infrastructure:** Docker · Google Cloud Run · Secret Manager · Artifact Registry  
+**Auth & Rate Limiting:** .NET 10 ASP.NET Core thin proxy  
+**CI/CD:** GitHub Actions
 
-The Reddit reply loop is **closed**: monitor → `/analyze` → HITL queue → moderator
-approve/edit → comment posted to the source thread. Auto-posting is **off by default**
-(`REDDIT_POST_ENABLED=false`): approving logs the decision and shows the reply for the
-moderator to copy manually — protecting the bot account from subreddit-rule / anti-spam
-bans. Flip to `true` only once the bot account and subreddit rules are cleared (a private
-test subreddit is recommended first).
+---
 
-## Setup
+## Key Design Decisions
+
+### Hybrid AI + Deterministic Risk Scoring
+Gemini Vision is excellent at identifying ingredients and visual condition (wilting, bruising, discoloration). But deciding *what to cook first* cannot be left to a probability. A hardcoded JSON ruleset maps each ingredient to a spoilage window and risk tier. The combination outperformed pure LLM ordering significantly in testing.
+
+### Human-in-the-Loop is Not Optional
+Community posts are unpredictable. Every draft reply is reviewed by a human moderator before posting. This is essential for quality, safety, and not embarrassing the bot account in subreddits with strict rules.
+
+### Idempotency Layer
+The same Reddit post can hit the pipeline more than once. Every request is deduplicated via an idempotency key in the database before any Gemini call is made.
+
+### Food Safety Disclaimer
+Every generated reply includes a hardcoded safety disclaimer. This is not configurable and cannot be removed by prompt injection.
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Python 3.12+
+- [Gemini Developer API key](https://aistudio.google.com/apikey) (free)
+- Docker (optional, for full stack)
+
+### Local (no Docker)
 
 ```bash
+cd apps/food_rescue_agent
 cp .env.example .env
-# fill in GEMINI_API_KEY, FOOD_RESCUE_API_KEY, and the Reddit creds:
-#   REDDIT_CLIENT_ID / SECRET / USERNAME / PASSWORD  (create a "script" app at
-#   https://www.reddit.com/prefs/apps), REDDIT_SUBREDDITS, REDDIT_POST_ENABLED=false
+# Edit .env: set GEMINI_API_KEY=your_key_here
 
-pip install -r requirements-dev.txt
+pip install -r requirements.txt
+uvicorn api.main:app --reload --port 8080
 ```
 
-## Run
+Dashboard:
+```bash
+streamlit run hitl/dashboard.py
+```
 
-### Quickstart — Docker (judges / standalone)
-
-Self-contained: needs only a Gemini API key (no GCP / Vertex / ADC). Run from **this folder**.
+### Docker (full stack)
 
 ```bash
-cp .env.example .env          # paste your GEMINI_API_KEY (https://aistudio.google.com/apikey)
-docker compose -f docker-compose.standalone.yml up --build
-#   food-rescue-agent  → FastAPI pipeline   http://localhost:8080  (POST /analyze, /analyze/text)
-#   hitl-dashboard     → Streamlit moderation UI  http://localhost:8501
-
-# Optional — add the live Reddit monitor (needs REDDIT_* creds in .env):
-docker compose -f docker-compose.standalone.yml --profile reddit up --build
+cp .env.example .env  # fill GEMINI_API_KEY
+docker compose -f docker-compose.standalone.yml up -d
 ```
 
-Smoke test once it's up:
+Then open:
+- **API:** http://localhost:8080/docs
+- **HITL Dashboard:** http://localhost:8501
+
+### Test a rescue request
 
 ```bash
-curl -s -X POST http://localhost:8080/analyze/text \
-  -H "X-API-Key: $FOOD_RESCUE_API_KEY" -H "Content-Type: application/json" \
-  -d '{"text":"2 wilting spinach bunches and mushrooms going off, no freezer"}'
+curl -X POST http://localhost:8080/analyze \
+  -H "X-API-Key: $FOOD_RESCUE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "My avocados are overripe and spinach is wilting. What can I make?",
+    "platform": "reddit",
+    "context": {"subreddit": "mealprep"}
+  }'
 ```
 
-### Production — GCP / Vertex AI (authors' deployment)
+---
 
-The authors run on a GCP VM with Vertex AI (ADC auth, no API key). That overlay sets
-`GOOGLE_GENAI_USE_VERTEXAI=true` + the service-account credentials and keeps the HITL
-dashboard internal-only:
+## Project Structure
 
-```bash
-# from repo root, with a gcp_adc.json present:
-docker compose -f apps/food_rescue_agent/docker-compose.override.yml --project-directory . up -d --build
+```
+apps/food_rescue_agent/
+├── agent/
+│   ├── intent.py          # Keyword-based intent classifier
+│   ├── vision.py          # Gemini Vision ingredient extraction
+│   ├── risk.py            # Deterministic spoilage scoring
+│   ├── planner.py         # Gemini rescue plan generation
+│   └── genai_client.py    # google-genai v2 SDK wrapper
+├── api/
+│   ├── main.py            # FastAPI app + endpoints
+│   └── models.py          # Pydantic request/response schemas
+├── connectors/
+│   └── reddit_monitor.py  # PRAW streaming monitor
+├── db/
+│   └── models.py          # SQLAlchemy ORM (SQLite/PostgreSQL)
+├── hitl/
+│   └── dashboard.py       # Streamlit HITL review dashboard
+├── Dockerfile
+├── docker-compose.standalone.yml
+└── .env.example
 ```
 
-### Locally (separate terminals)
+---
 
-```bash
-uvicorn api.main:app --reload --port 8080         # API
-streamlit run hitl/dashboard.py --server.port 8501 # HITL dashboard
-python connectors/reddit_monitor.py                # Reddit monitor (primary)
-python connectors/telegram_bot.py                  # Telegram (secondary, optional)
-```
+## Live Demo
 
-## API
+**HITL Dashboard:** https://fracc.34-141-19-206.sslip.io  
+**API Docs:** https://fracc.34-141-19-206.sslip.io/api/docs
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | /health | none | Health check |
-| POST | /analyze | X-API-Key | Full analysis (text + images) |
-| POST | /analyze/text | X-API-Key | Text-only fast path |
-| GET | /metrics | X-API-Key | Processing stats |
+No login required for the demo dashboard.
 
-### POST /analyze
+---
 
-```json
-{
-  "text": "Spinach going bad today, no freezer",
-  "images": ["<base64>"],
-  "platform": "reddit",
-  "context": { "no_freezer": true, "people_count": 3 },
-  "idempotency_key": "reddit:<post_id>",
-  "source_metadata": { "subreddit": "noscrapleftbehind", "reddit_post_id": "<id>" }
-}
-```
+## Technologies
 
-## Tests
+| Layer | Technology |
+|-------|-----------|
+| AI Vision + Text | Gemini 3.5 Flash via `google-genai` v2 SDK |
+| API | FastAPI + Pydantic v2 |
+| Dashboard | Streamlit |
+| Database | SQLAlchemy 2.x + Alembic · SQLite (dev) · PostgreSQL (prod) |
+| Reddit | PRAW |
+| Infrastructure | Docker · Google Cloud Run · Secret Manager |
+| Auth proxy | .NET 10 ASP.NET Core |
+| CI/CD | GitHub Actions |
 
-```bash
-# Unit tests (no API calls, fast)
-pytest tests/unit/ -v
+---
 
-# Integration tests (TestClient, mocked Gemini)
-pytest tests/integration/ -v
+## Findings
 
-# With real Gemini API
-GEMINI_INTEGRATION=true GEMINI_API_KEY=<key> pytest tests/integration/ -v
-```
+**Spoilage prioritization cannot be left to the LLM.** Gemini Vision is great at identifying what is in the fridge, but deciding what to cook first needs deterministic rules, not probabilities. The hybrid approach worked much better than expected.
 
-## Security
+**The HITL layer was more important than we initially thought.** Community posts are unpredictable and having a human in the loop before posting was essential, both for quality and for not embarrassing ourselves in front of a subreddit.
 
-- Agent is **not public-facing** — internal VPC / Cloud Run internal ingress only
-- No raw images stored in DB — temp files deleted after each request
-- Usernames/PII never enter logs or model prompts
-- HITL approval required before any community reply is sent
-- Reddit auto-posting is **off by default** (`REDDIT_POST_ENABLED=false`) — dry-run / manual copy
-- Food safety disclaimer injected in every response — cannot be omitted
+**The Python and .NET split kept things clean.** .NET handles auth and rate limiting, Python owns the AI pipeline. Keeping that boundary strict paid off.
 
-## Disclaimer policy
+---
 
-Every response includes:
+## License
 
-> ⚠️ These are general cooking suggestions only. Verify freshness by sight and smell.
-> Storage conditions and temperature history are unknown to us — you make the final
-> food safety call. When in doubt, throw it out. CulinaAI is not liable for food safety decisions.
+MIT — see [LICENSE](LICENSE)
+
+---
+
+*Built for the Google for Startups AI Agents Challenge 2025*
