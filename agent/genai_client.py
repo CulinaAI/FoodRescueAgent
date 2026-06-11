@@ -2,20 +2,22 @@ from __future__ import annotations
 import os
 
 from google import genai
+from google.genai.types import HttpOptions
 
 
 def get_genai_client() -> genai.Client:
     """Build the GenAI client.
 
-    Vertex AI (ADC auth) when GOOGLE_GENAI_USE_VERTEXAI is truthy — this is the
-    production path and matches the .NET backend (project culinaai-backend,
-    europe-west3). Falls back to a Gemini Developer API key for local dev / tests.
+    Vertex AI / Agent Platform (ADC auth) when GOOGLE_GENAI_USE_VERTEXAI is truthy.
+    Uses api_version='v1' (required for Gemini 3.5+ on Agent Platform).
+    Falls back to a Gemini Developer API key for local dev / tests.
     """
     if os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true", "yes"):
         return genai.Client(
             vertexai=True,
             project=os.getenv("GOOGLE_CLOUD_PROJECT", ""),
-            location=os.getenv("GOOGLE_CLOUD_LOCATION", "europe-west3"),
+            location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
+            http_options=HttpOptions(api_version="v1"),
         )
     return genai.Client(api_key=os.getenv("GEMINI_API_KEY", ""))
 

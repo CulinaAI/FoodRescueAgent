@@ -10,10 +10,9 @@ services:
     environment:
       # DB lives on the shared volume so the HITL dashboard sees the same data.
       DATABASE_URL: sqlite:////app/data/fra1.db
-      # Vertex AI — uses VM instance service account via metadata server (no key file needed).
-      GOOGLE_GENAI_USE_VERTEXAI: "true"
-      GOOGLE_CLOUD_PROJECT: culinaai-backend
-      GOOGLE_CLOUD_LOCATION: europe-west3
+      # AI model: Developer API key path (gemini-3.5-flash, immediate — no Vertex enrollment).
+      # GEMINI_API_KEY is loaded from .env (env_file above) — never hardcode it in this tracked file.
+      GOOGLE_GENAI_USE_VERTEXAI: "false"
       FRA_GEMINI_MODEL: gemini-3.5-flash
     volumes:
       - fra1_data:/app/data
