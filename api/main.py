@@ -197,7 +197,7 @@ async def _run_analysis(body: AnalyzeRequest) -> AnalyzeResponse:
                 for p in prioritized
             ]),
             rescue_plan=rescue_plan.model_dump_json(),
-            model_used=os.getenv("GEMINI_MODEL", "gemini-flash-latest"),
+            model_used=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
             latency_ms=latency_ms,
         )
         db.add(analysis_row)

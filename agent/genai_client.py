@@ -16,7 +16,7 @@ def get_genai_client() -> genai.Client:
         return genai.Client(
             vertexai=True,
             project=os.getenv("GOOGLE_CLOUD_PROJECT", ""),
-            location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
+            location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
             http_options=HttpOptions(api_version="v1"),
         )
     return genai.Client(api_key=os.getenv("GEMINI_API_KEY", ""))
